@@ -55,6 +55,7 @@ Node *new_node_num(int val);
 Node *expr();
 Node *primary();
 Node *mul();
+Node *unary();
 void gen(Node *node);
 
 #endif
