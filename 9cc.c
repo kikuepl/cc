@@ -24,16 +24,18 @@ void error(char *fmt, ...) {
     exit(1);
 }
 
-bool consume(char op) {
-    if (token->kind != TK_RESERVED || token->str[0] != op)
+bool consume(char *op) {
+    if (token->kind != TK_RESERVED ||
+        strlen(op) != token->len ||
+        memcmp(token->str, op, token->len))
         return false;
     token = token->next;
     return true;
 }
 
-void expect(char op) {
-    if (token->kind != TK_RESERVED || token->str[0] != op)
-        error("'%c'ではありません", op);
+void expect(char *op) {
+    if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len))
+        error(token->str, "'%s'ではありません", op);
     token = token->next;
 }
 
@@ -53,6 +55,7 @@ Token *new_token(TokenKind kind, Token *cur, char *str) {
     Token *tok = calloc(1, sizeof(Token));
     tok->kind = kind;
     tok->str = str;
+    tok->len = strlen(str);
     cur->next = tok;
     return tok;
 }
@@ -69,8 +72,11 @@ Token *tokenize(char *p) {
         }
 
         if (*p == '+' || *p == '-' || *p == '*' || *p == '/' ||
-            *p == '(' || *p == ')') {
-            cur = new_token(TK_RESERVED, cur, p++);
+            *p == '(' || *p == ')' || *p == '<' || *p == '>' || *p == '=' || *p == '!') {
+            int len = 1;
+            if((p[0] == '<' || p[0] == '>' || p[0] == '=' || p[0] == '!') && p[1] == '=') len = 2;
+            cur = new_token(TK_RESERVED, cur, strndup(p,len));
+            p += len;
             continue;
         }
 
@@ -106,9 +112,9 @@ Node *expr() {
   Node *node = mul();
 
   for (;;) {
-    if (consume('+'))
+    if (consume("+"))
       node = new_node(ND_ADD, node, mul());
-    else if (consume('-'))
+    else if (consume("-"))
       node = new_node(ND_SUB, node, mul());
     else
       return node;
@@ -117,17 +123,17 @@ Node *expr() {
 
 Node *unary()
 {
-    if (consume('+'))
+    if (consume("+"))
         return primary();
-    if (consume('-'))
+    if (consume("-"))
         return new_node(ND_SUB, new_node_num(0), primary());
     return primary();
 }
 
 Node *primary() {
-    if (consume('(')) {
+    if (consume("(")) {
         Node *node = expr();
-        expect(')');
+        expect(")");
         return node;
     }
 
@@ -138,10 +144,53 @@ Node *mul() {
   Node *node = unary();
 
   for (;;) {
-    if (consume('*'))
+    if (consume("*"))
       node = new_node(ND_MUL, node, unary());
-    else if (consume('/'))
+    else if (consume("/"))
       node = new_node(ND_DIV, node, unary());
+    else
+      return node;
+  }
+}
+
+Node *add() {
+  Node *node = mul();
+  
+  for(;;) {
+    if (consume("+"))
+       node = new_node(ND_ADD, node,mul());
+    else if (consume("-"))
+        node = new_node(ND_SUB, node, mul());
+    else
+        return node;
+  }
+}
+
+Node *relational() {
+  Node *node = add();
+
+  for(;;) {
+    if (consume("<"))
+        node = new_node(ND_LT, node, add());
+    else if (consume("<="))
+        node = new_node(ND_LE, node, add());
+    else if (consume(">"))
+        node = new_node(ND_GT, node, add());
+    else if(consume(">="))
+        node = new_node(ND_GE, node, add());
+    else
+        return node;
+  }
+}
+
+Node *equality() {
+  Node *node = relational();
+
+  for(;;) {
+    if(consume("=="))
+      node = new_node(ND_EQ, node, relational());
+    else if (consume("!="))
+      node = new_node(ND_NE, node, relational());
     else
       return node;
   }
@@ -173,6 +222,36 @@ void gen(Node *node) {
     printf("  cqo\n");
     printf("  idiv rdi\n");
     break;
+  case ND_LT:
+    printf("  cmp rax, rdi\n");
+    printf("  setl al\n");
+    printf("  movzb rax, al\n");
+    break;
+  case ND_LE:
+    printf("  cmp rax, rdi\n");
+    printf("  setle al\n");
+    printf("  movzb rax, al\n");
+    break;
+  case ND_GT:
+    printf("  cmp rax, rdi\n");
+    printf("  setg al\n");
+    printf("  movzb rax, al\n");
+    break;
+  case ND_GE:
+    printf("  cmp rax, rdi\n");
+    printf("  setge al\n");
+    printf("  movzb rax, al\n");
+    break;
+  case ND_EQ:
+    printf("  cmp rax, rdi\n");
+    printf("  sete al\n");
+    printf("  movzb rax, al\n");
+    break;
+  case ND_NE:
+    printf("  cmp rax, rdi\n");
+    printf("  setne al\n");
+    printf("  movzb rax, al\n");
+    break;
   }
 
   printf("  push rax\n");
@@ -186,7 +265,7 @@ int main(int argc, char **argv) {
 
   user_input = argv[1];
   token = tokenize(user_input);
-  Node *node = expr();
+  Node *node = equality();
 
   printf(".intel_syntax noprefix\n");
   printf(".globl main\n");

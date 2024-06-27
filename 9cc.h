@@ -1,5 +1,6 @@
 #ifndef MYCOMPILER_H
 #define MYCOMPILER_H
+#define _POSIX_C_SOURCE 200809L
 
 #include <stdbool.h>
 #include <ctype.h>
@@ -15,11 +16,17 @@ typedef enum {
 } TokenKind;
 
 typedef enum {
-    ND_ADD,
-    ND_SUB,
-    ND_MUL,
-    ND_DIV,
-    ND_NUM,
+    ND_ADD,       // +
+    ND_SUB,       // -
+    ND_MUL,       // *
+    ND_DIV,       // /
+    ND_NUM,       // Integer
+    ND_LT,        // <
+    ND_LE,        // <=
+    ND_GT,        // >
+    ND_GE,        // >=
+    ND_EQ,        // ==
+    ND_NE         // !=
 } NodeKind;
 
 typedef struct Token Token;
@@ -29,6 +36,7 @@ struct Token {
     TokenKind kind;
     Token *next;
     int val;
+    int len;
     char *str;
 };
 
@@ -44,8 +52,8 @@ extern Token *token;
 
 void error_at(char *loc, char *fmt, ...);
 void error(char *fmt, ...);
-bool consume(char op);
-void expect(char op);
+bool consume(char *op);
+void expect(char *op);
 int expect_number();
 bool at_eof();
 Token *new_token(TokenKind kind, Token *cur, char *str);
