@@ -1,5 +1,7 @@
 #include "9cc.h"
 
+Node *code[100]; 
+
 void error_at(char *loc, char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
@@ -31,9 +33,9 @@ bool consume(char *op) {
 }
 
 void expect(char *op) {
-    if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len))
-        error(token->str, "'%s'ではありません", op);
-    token = token->next;
+  if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len))
+      error(token->str, "'%s'ではありません", op);
+  token = token->next;
 }
 
 int expect_number() {
@@ -68,11 +70,17 @@ Token *tokenize(char *p) {
             continue;
         }
 
+        if (*p == ';') {
+            cur = new_token(TK_RESERVED, cur, strndup(p, 1));
+            p++;
+            continue;
+        }
+
         if (*p == '+' || *p == '-' || *p == '*' || *p == '/' ||
             *p == '(' || *p == ')' || *p == '<' || *p == '>' || *p == '=' || *p == '!') {
             int len = 1;
-            if((p[0] == '<' || p[0] == '>' || p[0] == '=' || p[0] == '!') && p[1] == '=') len = 2;
-            cur = new_token(TK_RESERVED, cur, strndup(p,len));
+            if ((p[0] == '<' || p[0] == '>' || p[0] == '=' || p[0] == '!') && p[1] == '=') len = 2;
+            cur = new_token(TK_RESERVED, cur, strndup(p, len));
             p += len;
             continue;
         }
@@ -80,6 +88,13 @@ Token *tokenize(char *p) {
         if (isdigit(*p)) {
             cur = new_token(TK_NUM, cur, p);
             cur->val = strtol(p, &p, 10);
+            continue;
+        }
+
+        if (isalpha(*p) || *p == '_') {
+            char *start = p;
+            while (isalnum(*p) || *p == '_') p++;
+            cur = new_token(TK_IDENT, cur, strndup(start, p - start));
             continue;
         }
 
@@ -105,17 +120,13 @@ Node *new_node_num(int val) {
   return node;
 }
 
-Node *expr() {
-  Node *node = mul();
-
-  for (;;) {
-    if (consume("+"))
-      node = new_node(ND_ADD, node, mul());
-    else if (consume("-"))
-      node = new_node(ND_SUB, node, mul());
-    else
-      return node;
-  }
+Token *consume_ident()
+{
+  if (token->kind != TK_IDENT)
+    return 0;
+  Token *tok = token;
+  token = token->next;
+  return tok;
 }
 
 Node *unary()
@@ -128,13 +139,22 @@ Node *unary()
 }
 
 Node *primary() {
-    if (consume("(")) {
-        Node *node = expr();
-        expect(")");
-        return node;
-    }
+  if (consume("("))
+  {
+      Node *node = expr();
+      expect(")");
+      return node;
+  }
+  Token *tok = consume_ident();
+  if (tok)
+  {
+    Node *node = calloc(1,sizeof(Node));
+    node->kind = ND_LVAR;
+    node->offset = (tok->str[0] - 'a' + 1) * 8;
+    return node;
+  }
 
-    return new_node_num(expect_number());
+  return new_node_num(expect_number());
 }
 
 Node *mul() {
@@ -191,4 +211,37 @@ Node *equality() {
     else
       return node;
   }
+}
+
+Node *assign()
+{
+  Node *node = equality();
+
+  if (consume("="))
+    node = new_node(ND_ASSIGN, node, assign());
+  return node;
+}
+
+Node *expr()
+{
+  Node *node = assign();
+  return node;
+}
+
+Node *stmt()
+{
+  Node *node = expr();
+  expect(";");
+  return node;
+}
+
+void program()
+{
+  int i = 0;
+  while(!at_eof())
+  {
+    code[i] = stmt();
+    i++;
+  }
+  code[i] = 0;
 }

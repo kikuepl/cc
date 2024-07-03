@@ -27,29 +27,33 @@ typedef enum {
     ND_GT,        // >
     ND_GE,        // >=
     ND_EQ,        // ==
-    ND_NE         // !=
+    ND_NE,        // !=
+    ND_ASSIGN,    // = 
+    ND_LVAR       //ローカル変数
 } NodeKind;
 
 typedef struct Token Token;
 typedef struct Node Node;
 
 struct Token {
-    TokenKind kind;
-    Token *next;
-    int val;
-    int len;
-    char *str;
+    TokenKind    kind;
+    Token       *next;
+    int         val;
+    int         len;
+    char        *str;
 };
 
 struct Node {
-    NodeKind kind;
-    Node *lhs;
-    Node *rhs;
-    int val;
+    NodeKind    kind;
+    Node        *lhs;
+    Node        *rhs;
+    int         val;
+    int         offset;
 };
 
 extern char *user_input;
 extern Token *token;
+extern Node *code[];
 
 void error_at(char *loc, char *fmt, ...);
 void error(char *fmt, ...);
@@ -69,5 +73,6 @@ void gen(Node *node);
 Node *equality();
 Node *relational();
 Node *add();
+void program();
 
 #endif
