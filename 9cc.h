@@ -1,5 +1,5 @@
-#ifndef MYCOMPILER_H
-#define MYCOMPILER_H
+#ifndef CC_H
+#define CC_H
 #define _POSIX_C_SOURCE 200809L
 
 #include <stdbool.h>
@@ -11,6 +11,7 @@
 
 typedef enum {
     TK_RESERVED,
+    TK_IDENT,
     TK_NUM,
     TK_EOF,
 } TokenKind;
@@ -65,5 +66,8 @@ Node *primary();
 Node *mul();
 Node *unary();
 void gen(Node *node);
+Node *equality();
+Node *relational();
+Node *add();
 
 #endif
