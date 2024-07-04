@@ -34,6 +34,7 @@ typedef enum {
 
 typedef struct Token Token;
 typedef struct Node Node;
+typedef struct LVar LVar;
 
 struct Token {
     TokenKind    kind;
@@ -51,9 +52,18 @@ struct Node {
     int         offset;
 };
 
+struct LVar {
+  LVar  *next; // 次の変数かNULL
+  char  *name; // 変数の名前
+  int   len;    // 名前の長さ
+  int   offset; // RBPからのオフセット
+};
+
 extern char *user_input;
 extern Token *token;
 extern Node *code[];
+extern struct LVar *locals;
+
 
 void error_at(char *loc, char *fmt, ...);
 void error(char *fmt, ...);
@@ -74,5 +84,6 @@ Node *equality();
 Node *relational();
 Node *add();
 void program();
+LVar *find_lvar(Token *tok);
 
 #endif

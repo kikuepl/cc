@@ -31,6 +31,10 @@ assert 1 "2<=2;"
 assert 0 "3<=2;"
 assert 1 "0==0;"
 assert 0 "0==1;"
+assert 3 "a = 3; a;"
 assert 6 "a=3; b=3; a+b;"
+assert 9 "a=3; b = 3;a*b;"
+assert 12 "abc = 12;"
+assert 24 "n = 12;k=2;ans=n*k;ans;"
 
 echo OK
